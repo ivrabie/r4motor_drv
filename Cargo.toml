@@ -1,0 +1,8 @@
+[package]
+name = "rust_4motor_drv"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+linux-embedded-hal = { version = "0.4", features = ["gpio_cdev"] }
+embedded-hal = { version = "1.0.0" }
