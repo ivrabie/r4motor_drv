@@ -1,7 +1,9 @@
 [package]
 name = "rust_4motor_drv"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "4motor driver"
+repository = "https://github.com/ivrabie/r4motor_drv.git"
 
 [dependencies]
 linux-embedded-hal = { version = "0.4", features = ["gpio_cdev"] }
