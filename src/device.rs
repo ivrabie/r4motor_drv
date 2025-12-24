@@ -146,19 +146,6 @@ pub enum RegisterID {
     LastErrorStatus = 0x27,
 }
 
-pub enum RegisterData {
-    DeviceID(String),
-    FirmwareVersion(String),
-    OperationMode(ControlMode),
-    MotorDirection(MotorDirection),
-    MotorPWMDutyCycle(u32),
-    MotorCountsPerRevolution(u32),
-    MotorRPM(u32),
-    MotorPIDParam(u32),
-    InternalLoopTime(u32),
-    LastErrorStatus(ErrorCode),
-}
-
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, TryFromPrimitive)]
 pub enum MotorID {
@@ -173,16 +160,6 @@ pub struct PidParams {
     pub kp: u32,
     pub ki: u32,
     pub kd: u32,
-}
-
-
-pub struct MotorCfg {
-    pub mode: ControlMode,
-    pub direction: MotorDirection,
-    pub pwm_duty_cycle: u32,
-    pub counts_per_revolution: u32,
-    pub rpm_desired: u32,
-    pub pid_params: PidParams,
 }
 
 #[derive(Debug, Clone)]
@@ -227,19 +204,6 @@ pub struct Device {
 }
 
 impl RegisterID {
-    pub fn to_motor_num(&self) -> Option<MotorID> {
-        let first = RegisterID::Motor1OperationMode as u8;
-        let last = RegisterID::Motor4PIDKd as u8;
-        let value = *self as u8;
-        if value < first || value > last {
-            return None;
-        }
-
-        let index = value - first;
-        let motor_idx = index / DEVICE_MOTOR_BLOCK_COUNT as u8;
-        MotorID::try_from(motor_idx).ok()
-    }
-
     pub fn from_motor_id(motor_id: &MotorID, offset: u8) -> Self {
         debug_assert!(
             (offset as usize) < DEVICE_MOTOR_BLOCK_COUNT,
