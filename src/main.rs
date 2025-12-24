@@ -1,13 +1,14 @@
-
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 
 use crate::device::Device;
 
 mod device;
 mod spi_proto;
+
+const SUPPORTED_SPI_IFS: [&str; 2] = ["/dev/spidev0.0", "/dev/spidev0.1"];
+
 #[derive(Debug, Clone, ValueEnum)]
-#[derive(Subcommand)]
-enum MotorDirection {
+enum CliMotorDirection {
     /// Forward
     Fw,
     /// Backward
@@ -16,41 +17,148 @@ enum MotorDirection {
     Stop,
 }
 
+impl From<CliMotorDirection> for device::MotorDirection {
+    fn from(direction: CliMotorDirection) -> Self {
+        match direction {
+            CliMotorDirection::Fw => device::MotorDirection::Forward,
+            CliMotorDirection::Bw => device::MotorDirection::Backward,
+            CliMotorDirection::Stop => device::MotorDirection::Stop,
+        }
+    }
+}
+
+enum MotorSelection {
+    All,
+    Indices(Vec<usize>),
+}
+
+fn parse_motor_selection(motors: &[u8], all: &bool) -> Result<MotorSelection, String> {
+    if *all {
+        if !motors.is_empty() {
+            return Err("Use --all or provide motor numbers, not both.".to_string());
+        }
+        return Ok(MotorSelection::All);
+    }
+
+    if motors.is_empty() {
+        return Err("No motors specified. Pass --all or a motor list.".to_string());
+    }
+
+    let max = device::DEVICE_SUPPORTED_MOTORS as u8;
+    let mut indices = Vec::with_capacity(motors.len());
+    for &motor in motors {
+        if motor == 0 || motor > max {
+            return Err(format!("Invalid motor {} (valid: 1..={}).", motor, max));
+        }
+        indices.push((motor - 1) as usize);
+    }
+    Ok(MotorSelection::Indices(indices))
+}
+
+fn for_each_motor_status<F>(
+    dev: &mut Device,
+    motors: &[u8],
+    all: bool,
+    mut f: F,
+) -> Result<(), String>
+where
+    F: FnMut(usize, device::MotorStatus),
+{
+    if all {
+        if !motors.is_empty() {
+            return Err("Use --all or provide motor numbers, not both.".to_string());
+        }
+        let statuses = dev.get_motor_dump_all();
+        for (idx, status) in statuses.iter().enumerate() {
+            f(idx, *status);
+        }
+        return Ok(());
+    }
+
+    if motors.is_empty() {
+        return Err("No motors specified. Pass --all or a motor list.".to_string());
+    }
+
+    let max = device::DEVICE_SUPPORTED_MOTORS as u8;
+    for motor in motors {
+        if *motor == 0 || *motor > max {
+            return Err(format!("Invalid motor {} (valid: 1..={}).", motor, max));
+        }
+        let idx = (*motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let status = dev.get_motor_dump(motor_id);
+        f(idx, status);
+    }
+    Ok(())
+}
+
 #[derive(Subcommand)]
 enum Commands {
-   /// Get firmware version
+    /// Get firmware version
     FwVers,
-   /// Get device ID
-    DeviceId, 
-    /// Get motor direction status
-    /// 0 -> all motors, 1 -> motor 1, 2 -> motor 2, etc.
-    GetMotDir {
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(0..=4))]
+    /// Get device ID
+    DeviceId,
+    /// Get all device status
+    DevAll,
+    /// Get motor control mode
+    GetMotMode {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
         motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+    /// Get motor direction status
+    GetMotDir {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
     },
     /// Set motor direction
-    /// 0 -> motor 1, 1 -> motor 2, etc.
     SetMotDir {
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(0..=4))]
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
         motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
         /// Direction: Fw -> Forward, Bw -> Backward, Stop -> Stop
-        #[arg(short='d', long="dir")]
-        direction: MotorDirection,
+        #[arg(short = 'd', long = "dir")]
+        direction: CliMotorDirection,
     },
     /// Get motor pwm value
-    /// 0 -> all motors, 1 -> motor 1, 2 -> motor 2, etc.
     GetMotPwm {
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(0..=4))]
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
         motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
     },
     /// Set motor pwm value
-    /// 0 -> all motors, 1 -> motor 1, 2 -> motor 2, etc.
     /// Pwm value range: 0 - 100
     SetMotPwm {
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(0..=4))]
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
         motors: Vec<u8>,
-        #[arg(short='p', long="pwm", value_parser = clap::value_parser!(u8).range(0..=100))]
-        pwm_values: u8,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u8).range(0..=100))]
+        pwm_value: u8,
+    },
+    /// Get PID parameters
+    GetPidParams {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
     },
 }
 
@@ -66,39 +174,107 @@ struct Cli {
     command: Commands,
 }
 
-
-
 fn main() {
     let cli = Cli::parse();
 
-    match cli.spi_if.as_str() {
-        "/dev/spidev0.0" | "/dev/spidev0.1" => {},
-        _ => {
-            eprintln!("Unsupported device path: {}", cli.spi_if);
-            return;
-        }
-    }
-
+    let mut dev = Device::new(&cli.spi_if);
     match &cli.command {
         Commands::FwVers => {
-            println!("Firmware Version command selected");
-        },
+            let sys_info = dev.get_device_info();
+            println!("Firmware Version: {}", sys_info.firmware_version);
+        }
         Commands::DeviceId => {
-            println!("Device ID command selected");
-        },
-        Commands::GetMotDir { motors } => {
-            println!("Get Motor Direction command selected for motors: {:?}", motors);
-        },
-        Commands::SetMotDir { motors, direction } => {
-            println!("Set Motor Direction command selected for motors: {:?} to direction: {:?}", motors, direction);
-        },
-        Commands::GetMotPwm { motors } => {
-            println!("Get Motor PWM command selected for motors: {:?}", motors);
-        },
-        Commands::SetMotPwm { motors, pwm_values } => {
-            println!("Set Motor PWM command selected for motors: {:?} to PWM value: {}", motors, pwm_values);
-        },
+            let sys_info = dev.get_device_info();
+            println!("Device ID: {}", sys_info.device_id);
+        }
+        Commands::DevAll => {
+            let full_info = dev.get_all_registers();
+            Device::print_full_device_info(&full_info);
+        }
+        Commands::GetMotMode { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} Control Mode: {:?}", idx + 1, status.mode);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::GetMotDir { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} Direction: {:?}", idx + 1, status.direction);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::SetMotDir {
+            motors,
+            all,
+            direction,
+        } => {
+            let selection = match parse_motor_selection(&motors, all) {
+                Ok(selection) => selection,
+                Err(err) => {
+                    eprintln!("{err}");
+                    return;
+                }
+            };
+            let direction: device::MotorDirection = (*direction).clone().into();
+            match selection {
+                MotorSelection::All => {
+                    eprintln!(
+                        "SetMotDir is not implemented yet. Would set all motors to {:?}.",
+                        direction
+                    );
+                }
+                MotorSelection::Indices(indices) => {
+                    let motors_list: Vec<usize> = indices.iter().map(|idx| idx + 1).collect();
+                    eprintln!(
+                        "SetMotDir is not implemented yet. Would set motors {:?} to {:?}.",
+                        motors_list, direction
+                    );
+                }
+            }
+        }
+        Commands::GetMotPwm { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} PWM: {}", idx + 1, status.pwm_duty_cycle);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::SetMotPwm {
+            motors,
+            all,
+            pwm_value,
+        } => {
+            let selection = match parse_motor_selection(&motors, all) {
+                Ok(selection) => selection,
+                Err(err) => {
+                    eprintln!("{err}");
+                    return;
+                }
+            };
+            match selection {
+                MotorSelection::All => {
+                    eprintln!(
+                        "SetMotPwm is not implemented yet. Would set all motors to PWM {}.",
+                        pwm_value
+                    );
+                }
+                MotorSelection::Indices(indices) => {
+                    let motors_list: Vec<usize> = indices.iter().map(|idx| idx + 1).collect();
+                    eprintln!(
+                        "SetMotPwm is not implemented yet. Would set motors {:?} to PWM {}.",
+                        motors_list, pwm_value
+                    );
+                }
+            }
+        }
+        Commands::GetPidParams { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} PID Parameters: {:?}", idx + 1, status.pid_params);
+            }) {
+                eprintln!("{err}");
+            }
+        }
     }
-    let mut device = Device::new(&cli.spi_if);
-    device.print_register_dump();
 }

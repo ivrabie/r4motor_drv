@@ -321,7 +321,7 @@ impl Device {
         status
     }
 
-    fn req_regs_dump(&mut self, reg_id: RegisterID, reg_dump: &mut [u8]) {
+    pub fn req_regs_dump(&mut self, reg_id: RegisterID, reg_dump: &mut [u8]) {
         assert!(
             reg_dump.len() + spi_proto::PROTOCOL_OVERHEAD <= REGISTERS_PROTO_SIZE,
             "Requested length exceeds register dump size"
@@ -358,7 +358,7 @@ impl Device {
         }
     }
 
-    fn get_all_registers(&mut self) -> DeviceFullInfo {
+    pub fn get_all_registers(&mut self) -> DeviceFullInfo {
         let mut reg_dump: [u8; REGISTERS_SIZE_BYTES] = [0; REGISTERS_SIZE_BYTES];
         self.req_regs_dump(RegisterID::DeviceID, &mut reg_dump);
         let sys_info = Self::parse_system_info(&reg_dump);
@@ -393,14 +393,14 @@ impl Device {
         Self::parse_system_info(&reg_dump)
     }
 
-    fn get_motor_dump(&mut self, motor_num: MotorID) -> MotorStatus {
+    pub fn get_motor_dump(&mut self, motor_num: MotorID) -> MotorStatus {
         let reg_id = RegisterID::from_motor_id(&motor_num, 0);
         let mut reg_dump: [u8; DEVICE_MOTOR_BLOCK_SIZE_BYTES] = [0; DEVICE_MOTOR_BLOCK_SIZE_BYTES];
         self.req_regs_dump(reg_id, &mut reg_dump);
         self.populate_motor_status(motor_num, &reg_dump)
     }
 
-    fn get_motor_dump_all(&mut self) -> [MotorStatus; DEVICE_SUPPORTED_MOTORS] {
+    pub fn get_motor_dump_all(&mut self) -> [MotorStatus; DEVICE_SUPPORTED_MOTORS] {
         let mut motor_statuses = [MotorStatus::default(); DEVICE_SUPPORTED_MOTORS];
         let mut reg_dump: [u8; DEVICE_ALL_MOTORS_BLOCK_SIZE_BYTES] = [0; DEVICE_ALL_MOTORS_BLOCK_SIZE_BYTES];
         self.req_regs_dump(RegisterID::Motor1OperationMode, &mut reg_dump);
@@ -415,19 +415,19 @@ impl Device {
         motor_statuses
     }
 
-    fn get_internal_loop_time_ms(&mut self) -> u32 {
+    pub fn get_internal_loop_time_ms(&mut self) -> u32 {
         let mut reg_dump: [u8; DEVICE_REG_SIZE_BYTES] = [0; DEVICE_REG_SIZE_BYTES];
         self.req_regs_dump(RegisterID::InternalLoopTime, &mut reg_dump);
         Self::extract_u32_from_bytes(&reg_dump)
     }
 
-    fn get_last_error_status(&mut self) -> ErrorCode {
+    pub fn get_last_error_status(&mut self) -> ErrorCode {
         let mut reg_dump: [u8; DEVICE_REG_SIZE_BYTES] = [0; DEVICE_REG_SIZE_BYTES];
         self.req_regs_dump(RegisterID::LastErrorStatus, &mut reg_dump);
         ErrorCode::try_from(Self::extract_u32_from_bytes(&reg_dump)).unwrap()
     }
 
-    pub fn print_full_device_info(dev_info: &mut DeviceFullInfo) { 
+    pub fn print_full_device_info(dev_info: &DeviceFullInfo) { 
         println!("Device full info:");
         println!("----------------");
         println!("Device ID: {}", dev_info.system_info.device_id);
