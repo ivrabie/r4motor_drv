@@ -1,16 +1,36 @@
 {
     "python.autoComplete.extraPaths": [
-        "${workspaceFolder}/sources/poky/bitbake/lib",
-        "${workspaceFolder}/sources/poky/meta/lib"
+      "${workspaceFolder}/sources/poky/bitbake/lib",
+      "${workspaceFolder}/sources/poky/meta/lib"
     ],
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/sources/poky/bitbake/lib",
-        "${workspaceFolder}/sources/poky/meta/lib"
+      "${workspaceFolder}/sources/poky/bitbake/lib",
+      "${workspaceFolder}/sources/poky/meta/lib"
     ],
+    "github.copilot.enable": {
+        "*": true,
+    },
     "files.associations": {
-        "*.c": "c",
-        "*.overlay": "arm",
-        "*.conf": "bitbake",
-        "*.inc": "bitbake"
-    }
+      "*.c": "c",
+      "*.overlay": "arm",
+      "*.conf": "bitbake",
+      "*.inc": "bitbake"
+    },
+    "files.watcherExclude": {
+      "**/oe-logs/**": true,
+      "**/oe-workdir/**": true, 
+      "**/target/**": true
+    },
+    "search.exclude": {
+      "**/oe-logs/**": true,
+      "**/oe-workdir/**": true,
+      "**/target/**": true
+    },
+    "editor.inlineSuggest.enabled": true,
+    "files.exclude": {
+      "**/oe-logs/**": true,
+      "**/oe-workdir/**": true,
+      "**/target/**": true
+    },
+    "rust-analyzer.checkOnSave": false
 }

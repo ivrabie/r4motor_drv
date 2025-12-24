@@ -1,29 +1,220 @@
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 
-use embedded_hal::spi::{Operation as SpiOperation, SpiDevice};
-use linux_embedded_hal::{SpidevDevice,  spidev::{SpidevOptions, SpiModeFlags}};
-use std::thread::sleep;
-use std::time::Duration;
+use crate::device::Device;
+
+mod device;
+mod spi_proto;
+
+
+#[derive(Debug, Clone, ValueEnum)]
+enum CliMotorDirection {
+    /// Forward
+    Fw,
+    /// Backward
+    Bw,
+    /// Stop
+    Stop,
+}
+
+impl From<CliMotorDirection> for device::MotorDirection {
+    fn from(direction: CliMotorDirection) -> Self {
+        match direction {
+            CliMotorDirection::Fw => device::MotorDirection::Forward,
+            CliMotorDirection::Bw => device::MotorDirection::Backward,
+            CliMotorDirection::Stop => device::MotorDirection::Stop,
+        }
+    }
+}
+
+fn for_each_motor_status<F>(
+    dev: &mut Device,
+    motors: &[u8],
+    all: bool,
+    mut f: F,
+) -> Result<(), String>
+where
+    F: FnMut(usize, device::MotorStatus),
+{
+    if all {
+        if !motors.is_empty() {
+            return Err("Use --all or provide motor numbers, not both.".to_string());
+        }
+        let statuses = dev.get_motor_dump_all();
+        for (idx, status) in statuses.iter().enumerate() {
+            f(idx, *status);
+        }
+        return Ok(());
+    }
+
+    if motors.is_empty() {
+        return Err("No motors specified. Pass --all or a motor list.".to_string());
+    }
+
+    let max = device::DEVICE_SUPPORTED_MOTORS as u8;
+    for motor in motors {
+        if *motor == 0 || *motor > max {
+            return Err(format!("Invalid motor {} (valid: 1..={}).", motor, max));
+        }
+        let idx = (*motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let status = dev.get_motor_dump(motor_id);
+        f(idx, status);
+    }
+    Ok(())
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Get firmware version
+    FwVers,
+    /// Get device ID
+    DeviceId,
+    /// Get all device status
+    DevAll,
+    /// Get internal loop time in ms
+    GetLoopTime,
+    /// Get last error status
+    GetLastError,
+    /// Get motor control mode
+    GetMotMode {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+    /// Get motor direction status
+    GetMotDir {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+    /// Set motor direction
+    SetMotDir {
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        /// Direction: Fw -> Forward, Bw -> Backward, Stop -> Stop
+        #[arg(short = 'd', long = "dir")]
+        direction: CliMotorDirection,
+    },
+    /// Get motor pwm value
+    GetMotPwm {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+    /// Set motor pwm value
+    /// Pwm value range: 0 - 100
+    SetMotPwm {
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u8).range(0..=100))]
+        pwm_value: u8,
+    },
+    /// Get PID parameters
+    GetPidParams {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+}
+
+#[derive(Parser)]
+#[command(name = "rust-4motor-drv")]
+#[command(about = "SPI Motor Driver", long_about = None)]
+struct Cli {
+    /// SPI device path
+    #[arg(short, long, default_value = "/dev/spidev0.0")]
+    spi_if: String,
+
+    #[command(subcommand)]
+    command: Commands,
+}
 
 fn main() {
-    let mut spi = SpidevDevice::open("/dev/spidev0.0").expect("Failed to open");
-    
-    let options = SpidevOptions::new()
-        .bits_per_word(8)
-        .max_speed_hz(500_000)  // 1 MHz
-        .mode(SpiModeFlags::SPI_MODE_0)
-        .lsb_first(false)
-        .build();
-    println!("{}", options.lsb_first.unwrap());
-    spi.configure(&options).expect("Failed to configure");
-    let mut read_buf = [0u8; 5];
-    // let mut spi_ops = [
-    //     SpiOperation::Write(&[0xCE]),
-    //     SpiOperation::DelayNs(25000),
-    //     SpiOperation::Read(& mut read_buf)
-    // ];
-    // spi.transaction(&mut spi_ops).expect("Failed to send");
-    spi.write(&[0xCE]).unwrap();
-    sleep(Duration::from_micros(1500));
-    spi.read(&mut read_buf).unwrap();
-    println!("{:?}", read_buf);
+    let cli = Cli::parse();
+
+    let mut dev = Device::new(&cli.spi_if);
+    match &cli.command {
+        Commands::FwVers => {
+            let sys_info = dev.get_device_info();
+            println!("Firmware Version: {}", sys_info.firmware_version);
+        }
+        Commands::DeviceId => {
+            let sys_info = dev.get_device_info();
+            println!("Device ID: {}", sys_info.device_id);
+        }
+        Commands::DevAll => {
+            let full_info = dev.get_all_registers();
+            Device::print_full_device_info(&full_info);
+        }
+        Commands::GetLoopTime => {
+            let loop_time = dev.get_internal_loop_time_ms();
+            println!("Internal Loop Time: {} ms", loop_time);
+        }
+        Commands::GetLastError => {
+            let error_status = dev.get_last_error_status();
+            println!("Last Error Status: {:?}", error_status);
+        }
+        Commands::GetMotMode { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} Control Mode: {:?}", idx + 1, status.mode);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::GetMotDir { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} Direction: {:?}", idx + 1, status.direction);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::SetMotDir {
+            motors,
+            all,
+            direction,
+        } => {
+            eprint!("SetMotDir command is not yet implemented.");
+        }
+        Commands::GetMotPwm { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} PWM: {}", idx + 1, status.pwm_duty_cycle);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::SetMotPwm {
+            motors,
+            all,
+            pwm_value,
+        } => {
+            eprintln!("SetMotPwm command is not yet implemented.");
+        }
+        Commands::GetPidParams { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} PID Parameters: {:?}", idx + 1, status.pid_params);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+    }
 }
