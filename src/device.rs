@@ -291,8 +291,8 @@ impl Device {
             "Requested length exceeds register dump size"
         );
         // Placeholder for actual implementation to request register dump from device
-        let mut register_dump: [u8; REGISTERS_PROTO_SIZE] = [0; REGISTERS_PROTO_SIZE];
-        let (header_slice, crc_slice) = register_dump.split_at_mut(spi_proto::PROTOCOL_DATA_OFFSET);
+        let mut buffer_dump: [u8; REGISTERS_PROTO_SIZE] = [0; REGISTERS_PROTO_SIZE];
+        let (header_slice, crc_slice) = buffer_dump.split_at_mut(spi_proto::PROTOCOL_DATA_OFFSET);
         let crc_slice = &mut crc_slice[0..spi_proto::PROTOCOL_CRC_SIZE];
         spi_proto::populate_header(
             reg_id as u8,
@@ -303,20 +303,20 @@ impl Device {
         spi_proto::populate_crc(header_slice, crc_slice);
         // Here you would send the request via SPI and read the response
         println!("Register dump requested.");
-        spi_proto::execute_spi_transaction(&mut self.spi_dev, &mut register_dump);
+        spi_proto::execute_spi_transaction(&mut self.spi_dev, &mut buffer_dump);
 
         // Process the received register dump
         println!("Register dump received.");
         let recv_crc_start_idx = reg_dump.len() + spi_proto::PROTOCOL_OVERHEAD;
         let recv_crc = u16::from_le_bytes([
-            register_dump[recv_crc_start_idx],
-            register_dump[recv_crc_start_idx + 1],
+            buffer_dump[recv_crc_start_idx],
+            buffer_dump[recv_crc_start_idx + 1],
         ]);
-        let is_valid_crc = spi_proto::validate_crc(&register_dump[0..recv_crc_start_idx], recv_crc);
+        let is_valid_crc = spi_proto::validate_crc(&buffer_dump[0..recv_crc_start_idx], recv_crc);
         if is_valid_crc {
             println!("CRC validation passed.");
             reg_dump
-                .copy_from_slice(&register_dump[spi_proto::PROTOCOL_OVERHEAD..recv_crc_start_idx]);
+                .copy_from_slice(&buffer_dump[spi_proto::PROTOCOL_OVERHEAD..recv_crc_start_idx]);
         } else {
             println!("CRC validation failed.");
         }

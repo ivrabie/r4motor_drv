@@ -8,14 +8,19 @@ inherit cargo
 # how to get rust_4motor_drv could be as easy as but default to a git checkout:
 # SRC_URI += "crate://crates.io/rust_4motor_drv/0.1.0"
 SRC_URI += "git://git@github.com/ivrabie/r4motor_drv.git;protocol=ssh;nobranch=1;branch=main"
-SRCREV = "967611c6d3d8b32773415264489caa1061a8acc3"
+SRCREV = "5cf035053244fdd973c2c4160c197f871446365c"
 S = "${WORKDIR}/git"
 CARGO_SRC_DIR = ""
-PV:append = ".AUTOINC+967611c6d3"
+PV:append = ".AUTOINC+5cf0350532"
 
 # please note if you have entries that do not begin with crate://
 # you must change them to how that package can be fetched
 SRC_URI += " \
+    crate://crates.io/anstream/0.6.21 \
+    crate://crates.io/anstyle-parse/0.2.7 \
+    crate://crates.io/anstyle-query/1.1.5 \
+    crate://crates.io/anstyle-wincon/3.0.11 \
+    crate://crates.io/anstyle/1.0.13 \
     crate://crates.io/autocfg/1.5.0 \
     crate://crates.io/bitflags/1.3.2 \
     crate://crates.io/bitflags/2.10.0 \
@@ -23,37 +28,64 @@ SRC_URI += " \
     crate://crates.io/cast/0.3.0 \
     crate://crates.io/cc/1.2.43 \
     crate://crates.io/cfg-if/1.0.4 \
+    crate://crates.io/clap/4.5.53 \
+    crate://crates.io/clap_builder/4.5.53 \
+    crate://crates.io/clap_derive/4.5.49 \
+    crate://crates.io/clap_lex/0.7.6 \
+    crate://crates.io/colorchoice/1.0.4 \
     crate://crates.io/core-foundation-sys/0.8.7 \
     crate://crates.io/core-foundation/0.10.0 \
+    crate://crates.io/crc-catalog/2.4.0 \
+    crate://crates.io/crc/3.4.0 \
     crate://crates.io/embedded-hal-nb/1.0.0 \
     crate://crates.io/embedded-hal/1.0.0 \
+    crate://crates.io/equivalent/1.0.2 \
     crate://crates.io/find-msvc-tools/0.1.4 \
     crate://crates.io/gpio-cdev/0.6.0 \
+    crate://crates.io/hashbrown/0.16.1 \
+    crate://crates.io/heck/0.5.0 \
     crate://crates.io/i2cdev/0.6.1 \
+    crate://crates.io/indexmap/2.12.1 \
     crate://crates.io/io-kit-sys/0.4.1 \
+    crate://crates.io/is_terminal_polyfill/1.70.2 \
     crate://crates.io/libc/0.2.177 \
     crate://crates.io/linux-embedded-hal/0.4.0 \
     crate://crates.io/mach2/0.4.3 \
+    crate://crates.io/memchr/2.7.6 \
     crate://crates.io/memoffset/0.6.5 \
     crate://crates.io/memoffset/0.7.1 \
     crate://crates.io/nb/1.1.0 \
     crate://crates.io/nix/0.23.2 \
     crate://crates.io/nix/0.26.4 \
     crate://crates.io/nix/0.27.1 \
+    crate://crates.io/num_enum/0.7.5 \
+    crate://crates.io/num_enum_derive/0.7.5 \
+    crate://crates.io/once_cell_polyfill/1.70.2 \
     crate://crates.io/pin-utils/0.1.0 \
+    crate://crates.io/proc-macro-crate/3.4.0 \
     crate://crates.io/proc-macro2/1.0.103 \
     crate://crates.io/quote/1.0.40 \
+    crate://crates.io/rustversion/1.0.22 \
     crate://crates.io/scopeguard/1.2.0 \
+    crate://crates.io/serde_core/1.0.228 \
+    crate://crates.io/serde_derive/1.0.228 \
     crate://crates.io/serialport/4.8.1 \
     crate://crates.io/shlex/1.3.0 \
     crate://crates.io/spidev/0.6.1 \
+    crate://crates.io/strsim/0.11.1 \
     crate://crates.io/syn/2.0.108 \
     crate://crates.io/sysfs_gpio/0.6.2 \
     crate://crates.io/thiserror-impl/2.0.17 \
     crate://crates.io/thiserror/2.0.17 \
+    crate://crates.io/toml_datetime/0.7.5+spec-1.1.0 \
+    crate://crates.io/toml_edit/0.23.10+spec-1.0.0 \
+    crate://crates.io/toml_parser/1.0.6+spec-1.1.0 \
     crate://crates.io/unescaper/0.1.6 \
     crate://crates.io/unicode-ident/1.0.20 \
+    crate://crates.io/utf8parse/0.2.2 \
+    crate://crates.io/windows-link/0.2.1 \
     crate://crates.io/windows-sys/0.52.0 \
+    crate://crates.io/windows-sys/0.61.2 \
     crate://crates.io/windows-targets/0.52.6 \
     crate://crates.io/windows_aarch64_gnullvm/0.52.6 \
     crate://crates.io/windows_aarch64_msvc/0.52.6 \
@@ -63,6 +95,7 @@ SRC_URI += " \
     crate://crates.io/windows_x86_64_gnu/0.52.6 \
     crate://crates.io/windows_x86_64_gnullvm/0.52.6 \
     crate://crates.io/windows_x86_64_msvc/0.52.6 \
+    crate://crates.io/winnow/0.7.14 \
 "
 
 

@@ -49,7 +49,7 @@ pub fn execute_spi_transaction(spidev: &mut impl SpiDevice,
 
 pub fn populate_header(reg:u8, rw: SpiPackOpType, rw_len: u16, header: &mut [u8]) {
     assert!(header.len() == PROTOCOL_DATA_OFFSET,
-            "Header size should be exaclty {} received {}",
+            "Header size should be exactly {} received {}",
             PROTOCOL_DATA_OFFSET, header.len());
     header[0] = (reg & 0x7f) | (rw as u8) << 7;
     header[1..PROTOCOL_DATA_OFFSET as usize].copy_from_slice(&rw_len.to_le_bytes());
@@ -59,7 +59,7 @@ pub fn populate_header(reg:u8, rw: SpiPackOpType, rw_len: u16, header: &mut [u8]
 pub fn populate_crc(buff: &[u8], crc: &mut[u8])
 {
     assert!(crc.len() == PROTOCOL_CRC_SIZE,
-            "CRC buffer size should be exaclty 2 received {}",
+            "CRC buffer size should be exactly 2 received {}",
             crc.len());
     let crc_algo = Crc::<u16>::new(&CRC_16_IBM_SDLC);
     let crc_val = crc_algo.checksum(&buff[0..buff.len()]);
