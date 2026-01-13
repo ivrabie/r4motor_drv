@@ -1,58 +1,47 @@
+use std::thread::sleep;
+
 use crc::{Crc, CRC_16_IBM_SDLC};
 use embedded_hal::spi::{Operation as SpiOperation, SpiDevice};
+use num_enum::TryFromPrimitive;
 
-
-pub const PROTOCOL_OVERHEAD : usize = 5; // 1 byte reg, 2 bytes len, 2 bytes CRC
-pub const PROTOCOL_DATA_OFFSET: usize = 3;
+pub const PROTOCOL_HEADER_SIZE : usize = 5; // 1 byte reg, 2 bytes len, 2 bytes CRC
+pub const PROTOCOL_HEADER_CRC_OFFSET: usize = 3;
 pub const PROTOCOL_CRC_SIZE: usize = 2;
 
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TryFromPrimitive)]
 pub enum SpiPackOpType {
     Read = 0u8,
     Write = 1u8,
 }
 
-
-impl TryFrom<u8> for SpiPackOpType {
-    type Error = u8;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(SpiPackOpType::Read),
-            1 => Ok(SpiPackOpType::Write),
-            other => Err(other),
-        }
-    }
-}
 pub fn execute_spi_transaction(spidev: &mut impl SpiDevice, 
                                 buffer: &mut [u8]) { 
 
-
     let operation = SpiPackOpType::try_from((buffer[0] >> 7u8) & 0x01u8).unwrap();
-
+    let (header, data_crc) = buffer.split_at_mut(PROTOCOL_HEADER_SIZE);
+    spidev.write(header).unwrap();
+    sleep(std::time::Duration::from_millis(50));
     if operation == SpiPackOpType::Write {
-        let mut spi_ops = [
-            SpiOperation::Write(&buffer),
-        ];
-        spidev.transaction(&mut spi_ops).expect("SPI transaction failed");
+        spidev.write(data_crc).unwrap();
+        sleep(std::time::Duration::from_millis(50));
     } else {
-        let (header, data_crc) = buffer.split_at_mut(PROTOCOL_OVERHEAD);
-        let mut spi_ops = [
-            SpiOperation::Write(header),
-            SpiOperation::DelayNs(25000),
-            SpiOperation::Read(data_crc),
-        ];
-        spidev.transaction(&mut spi_ops).expect("SPI transaction failed");
+        spidev.read(data_crc).unwrap();
+        sleep(std::time::Duration::from_millis(50));
+        // spidev.transaction(&mut spi_ops).expect("SPI transaction failed");
+        println!("Received data: {:x?}", data_crc);
     }
 }
 
 
 pub fn populate_header(reg:u8, rw: SpiPackOpType, rw_len: u16, header: &mut [u8]) {
-    assert!(header.len() == PROTOCOL_DATA_OFFSET,
+    assert!(header.len() == PROTOCOL_HEADER_SIZE,
             "Header size should be exaclty {} received {}",
-            PROTOCOL_DATA_OFFSET, header.len());
-    header[0] = (reg & 0x7f) | (rw as u8) << 7;
-    header[1..PROTOCOL_DATA_OFFSET as usize].copy_from_slice(&rw_len.to_le_bytes());
+            PROTOCOL_HEADER_SIZE, header.len());
+    let (header, crc) = header.split_at_mut(PROTOCOL_HEADER_CRC_OFFSET);
+    header[0] = (reg & 0x7f) | ((rw as u8) << 7);
+    header[1..PROTOCOL_HEADER_CRC_OFFSET as usize].copy_from_slice(&rw_len.to_le_bytes());
+    populate_crc(header, crc);
 }
 
 
