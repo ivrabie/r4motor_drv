@@ -63,6 +63,34 @@ where
     Ok(())
 }
 
+/// Helper function to write a PID parameter to all motors
+fn write_pid_param_to_all_motors(
+    dev: &mut Device,
+    value: u32,
+    kp_regs: [device::RegisterID; 4],
+) {
+    let param_bytes = value.to_le_bytes();
+    for reg in kp_regs {
+        dev.req_reg_write(reg, &param_bytes);
+    }
+}
+
+/// Helper function to write a PID parameter to specific motors
+fn write_pid_param_to_motors(
+    dev: &mut Device,
+    motors: &[u8],
+    value: u32,
+    offset: device::MotorRegisterOffset,
+) {
+    let param_bytes = value.to_le_bytes();
+    for motor in motors {
+        let idx = (*motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let reg_id = device::RegisterID::from_motor_id(&motor_id, offset);
+        dev.req_reg_write(reg_id, &param_bytes);
+    }
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Get firmware version
@@ -285,27 +313,42 @@ fn main() {
 
             if *all {
                 if let Some(kp_val) = kp {
-                    let kp_reg = kp_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKp, &kp_reg);
+                    write_pid_param_to_all_motors(
+                        &mut dev,
+                        *kp_val,
+                        [
+                            device::RegisterID::Motor1PIDKp,
+                            device::RegisterID::Motor2PIDKp,
+                            device::RegisterID::Motor3PIDKp,
+                            device::RegisterID::Motor4PIDKp,
+                        ],
+                    );
                 }
                 
                 if let Some(ki_val) = ki {
-                    let ki_reg = ki_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKi, &ki_reg);
+                    write_pid_param_to_all_motors(
+                        &mut dev,
+                        *ki_val,
+                        [
+                            device::RegisterID::Motor1PIDKi,
+                            device::RegisterID::Motor2PIDKi,
+                            device::RegisterID::Motor3PIDKi,
+                            device::RegisterID::Motor4PIDKi,
+                        ],
+                    );
                 }
                 
                 if let Some(kd_val) = kd {
-                    let kd_reg = kd_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKd, &kd_reg);
+                    write_pid_param_to_all_motors(
+                        &mut dev,
+                        *kd_val,
+                        [
+                            device::RegisterID::Motor1PIDKd,
+                            device::RegisterID::Motor2PIDKd,
+                            device::RegisterID::Motor3PIDKd,
+                            device::RegisterID::Motor4PIDKd,
+                        ],
+                    );
                 }
             } else {
                 if motors.is_empty() {
@@ -313,33 +356,16 @@ fn main() {
                     return;
                 }
                 
-                for motor in motors {
-                    let idx = (*motor - 1) as usize;
-                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
-                    
-                    if let Some(kp_val) = kp {
-                        let kp_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKp); // PID Kp offset
-                        let kp_reg = kp_val.to_le_bytes();
-                        dev.req_reg_write(kp_reg_id, &kp_reg);
-                    }
-                    
-                    if let Some(ki_val) = ki {
-                        let ki_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKi); // PID Ki offset
-                        let ki_reg = ki_val.to_le_bytes();
-                        dev.req_reg_write(ki_reg_id, &ki_reg);
-                    }
-                    
-                    if let Some(kd_val) = kd {
-                        let kd_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKd); // PID Kd offset
-                        let kd_reg = kd_val.to_le_bytes();
-                        dev.req_reg_write(kd_reg_id, &kd_reg);
-                    }
+                if let Some(kp_val) = kp {
+                    write_pid_param_to_motors(&mut dev, motors, *kp_val, device::MotorRegisterOffset::PIDKp);
+                }
+                
+                if let Some(ki_val) = ki {
+                    write_pid_param_to_motors(&mut dev, motors, *ki_val, device::MotorRegisterOffset::PIDKi);
+                }
+                
+                if let Some(kd_val) = kd {
+                    write_pid_param_to_motors(&mut dev, motors, *kd_val, device::MotorRegisterOffset::PIDKd);
                 }
             }
         }
