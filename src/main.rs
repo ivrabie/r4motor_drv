@@ -6,7 +6,7 @@ mod device;
 mod spi_proto;
 
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum CliMotorDirection {
     /// Forward
     Fw,
@@ -135,6 +135,24 @@ enum Commands {
         #[arg(long, action = ArgAction::SetTrue)]
         all: bool,
     },
+    /// Set PID parameters
+    SetPidParams {
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        /// PID Kp parameter (optional)
+        #[arg(long = "kp")]
+        kp: Option<u32>,
+        /// PID Ki parameter (optional)
+        #[arg(long = "ki")]
+        ki: Option<u32>,
+        /// PID Kd parameter (optional)
+        #[arg(long = "kd")]
+        kd: Option<u32>,
+    },
 }
 
 #[derive(Parser)]
@@ -193,7 +211,25 @@ fn main() {
             all,
             direction,
         } => {
-            eprint!("SetMotDir command is not yet implemented.");
+           if *all == true {
+                let dir_reg = (device::MotorDirection::from(*direction) as u32).to_le_bytes();
+                dev.req_reg_write(device::RegisterID::Motor1Direction, &dir_reg);
+                dev.req_reg_write(device::RegisterID::Motor2Direction, &dir_reg);
+                dev.req_reg_write(device::RegisterID::Motor3Direction, &dir_reg);
+                dev.req_reg_write(device::RegisterID::Motor4Direction, &dir_reg);
+           } else {
+                if motors.is_empty() {
+                    eprintln!("No motors specified. Pass --all or a motor list.");
+                    return;
+                }
+                for motor in motors {
+                    let idx = (*motor - 1) as usize;
+                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+                    let reg_id = device::RegisterID::from_motor_id(&motor_id, device::MotorRegisterOffset::Direction);
+                    let dir_reg = (device::MotorDirection::from(*direction) as u32).to_le_bytes();
+                    dev.req_reg_write(reg_id, &dir_reg);
+                }
+           }
         }
         Commands::GetMotPwm { motors, all } => {
             if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
@@ -207,13 +243,104 @@ fn main() {
             all,
             pwm_value,
         } => {
-            eprintln!("SetMotPwm command is not yet implemented.");
+           if *all == true {
+                let pwm_reg = (*pwm_value as u32).to_le_bytes();
+                dev.req_reg_write(device::RegisterID::Motor1PWMDutyCycle, &pwm_reg);
+                dev.req_reg_write(device::RegisterID::Motor2PWMDutyCycle, &pwm_reg);
+                dev.req_reg_write(device::RegisterID::Motor3PWMDutyCycle, &pwm_reg);
+                dev.req_reg_write(device::RegisterID::Motor4PWMDutyCycle, &pwm_reg);
+           } else {
+                if motors.is_empty() {
+                    eprintln!("No motors specified. Pass --all or a motor list.");
+                    return;
+                }
+                for motor in motors {
+                    let idx = (*motor - 1) as usize;
+                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+                    let reg_id = device::RegisterID::from_motor_id(&motor_id, device::MotorRegisterOffset::PWMDutyCycle);
+                    let pwm_reg = (*pwm_value as u32).to_le_bytes();
+                    dev.req_reg_write(reg_id, &pwm_reg);
+                }
+           } 
         }
         Commands::GetPidParams { motors, all } => {
             if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
                 println!("Motor {} PID Parameters: {:?}", idx + 1, status.pid_params);
             }) {
                 eprintln!("{err}");
+            }
+        }
+        Commands::SetPidParams {
+            motors,
+            all,
+            kp,
+            ki,
+            kd,
+        } => {
+            // Validate that at least one PID parameter is provided
+            if kp.is_none() && ki.is_none() && kd.is_none() {
+                eprintln!("At least one PID parameter (--kp, --ki, or --kd) must be specified.");
+                return;
+            }
+
+            if *all {
+                if let Some(kp_val) = kp {
+                    let kp_reg = kp_val.to_le_bytes();
+                    dev.req_reg_write(device::RegisterID::Motor1PIDKp, &kp_reg);
+                    dev.req_reg_write(device::RegisterID::Motor2PIDKp, &kp_reg);
+                    dev.req_reg_write(device::RegisterID::Motor3PIDKp, &kp_reg);
+                    dev.req_reg_write(device::RegisterID::Motor4PIDKp, &kp_reg);
+                }
+                
+                if let Some(ki_val) = ki {
+                    let ki_reg = ki_val.to_le_bytes();
+                    dev.req_reg_write(device::RegisterID::Motor1PIDKi, &ki_reg);
+                    dev.req_reg_write(device::RegisterID::Motor2PIDKi, &ki_reg);
+                    dev.req_reg_write(device::RegisterID::Motor3PIDKi, &ki_reg);
+                    dev.req_reg_write(device::RegisterID::Motor4PIDKi, &ki_reg);
+                }
+                
+                if let Some(kd_val) = kd {
+                    let kd_reg = kd_val.to_le_bytes();
+                    dev.req_reg_write(device::RegisterID::Motor1PIDKd, &kd_reg);
+                    dev.req_reg_write(device::RegisterID::Motor2PIDKd, &kd_reg);
+                    dev.req_reg_write(device::RegisterID::Motor3PIDKd, &kd_reg);
+                    dev.req_reg_write(device::RegisterID::Motor4PIDKd, &kd_reg);
+                }
+            } else {
+                if motors.is_empty() {
+                    eprintln!("No motors specified. Pass --all or a motor list.");
+                    return;
+                }
+                
+                for motor in motors {
+                    let idx = (*motor - 1) as usize;
+                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+                    
+                    if let Some(kp_val) = kp {
+                        let kp_reg_id = device::RegisterID::from_motor_id(
+                            &motor_id,
+                            device::MotorRegisterOffset::PIDKp); // PID Kp offset
+                        let kp_reg = kp_val.to_le_bytes();
+                        dev.req_reg_write(kp_reg_id, &kp_reg);
+                    }
+                    
+                    if let Some(ki_val) = ki {
+                        let ki_reg_id = device::RegisterID::from_motor_id(
+                            &motor_id,
+                            device::MotorRegisterOffset::PIDKi); // PID Ki offset
+                        let ki_reg = ki_val.to_le_bytes();
+                        dev.req_reg_write(ki_reg_id, &ki_reg);
+                    }
+                    
+                    if let Some(kd_val) = kd {
+                        let kd_reg_id = device::RegisterID::from_motor_id(
+                            &motor_id,
+                            device::MotorRegisterOffset::PIDKd); // PID Kd offset
+                        let kd_reg = kd_val.to_le_bytes();
+                        dev.req_reg_write(kd_reg_id, &kd_reg);
+                    }
+                }
             }
         }
     }
