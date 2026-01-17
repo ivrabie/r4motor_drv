@@ -1,30 +1,12 @@
-use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Parser, Subcommand};
 
-use crate::device::Device;
+use crate::device::{Device, MotorRegisterOffset};
 
 mod device;
 mod spi_proto;
 
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum CliMotorDirection {
-    /// Forward
-    Fw,
-    /// Backward
-    Bw,
-    /// Stop
-    Stop,
-}
-
-impl From<CliMotorDirection> for device::MotorDirection {
-    fn from(direction: CliMotorDirection) -> Self {
-        match direction {
-            CliMotorDirection::Fw => device::MotorDirection::Forward,
-            CliMotorDirection::Bw => device::MotorDirection::Backward,
-            CliMotorDirection::Stop => device::MotorDirection::Stop,
-        }
-    }
-}
+pub const MOTOR_INDEX_RANGE_I64: std::ops::RangeInclusive<i64> = 1..=4;
+pub const MOTOR_INDEX_RANGE: std::ops::RangeInclusive<u8> = 1..=4;
 
 fn for_each_motor_status<F>(
     dev: &mut Device,
@@ -78,16 +60,28 @@ enum Commands {
     /// Get motor control mode
     GetMotMode {
         /// Motors to query: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Query all motors
         #[arg(long, action = ArgAction::SetTrue)]
         all: bool,
     },
+    /// Set motor control mode
+    SetMotMode {
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
+        motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        /// Control mode: Auto -> Automatic, Pwm -> PWM control, Rpm -> RPM control
+        #[arg(short = 'm', long = "mode")]
+        mode: device::ControlMode,
+    },
     /// Get motor direction status
     GetMotDir {
         /// Motors to query: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+    #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Query all motors
         #[arg(long, action = ArgAction::SetTrue)]
@@ -96,19 +90,19 @@ enum Commands {
     /// Set motor direction
     SetMotDir {
         /// Motors to set: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Set all motors
         #[arg(long, action = ArgAction::SetTrue)]
         all: bool,
         /// Direction: Fw -> Forward, Bw -> Backward, Stop -> Stop
         #[arg(short = 'd', long = "dir")]
-        direction: CliMotorDirection,
+        direction: device::MotorDirection,
     },
     /// Get motor pwm value
     GetMotPwm {
         /// Motors to query: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Query all motors
         #[arg(long, action = ArgAction::SetTrue)]
@@ -118,18 +112,39 @@ enum Commands {
     /// Pwm value range: 0 - 100
     SetMotPwm {
         /// Motors to set: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Set all motors
         #[arg(long, action = ArgAction::SetTrue)]
         all: bool,
-        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u8).range(0..=100))]
-        pwm_value: u8,
+        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u32).range(0..=100))]
+        pwm_value: u32,
+    },
+    /// Get Rpm parameters 
+    GetRpmParams {
+        /// Motors to query: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
+        motors: Vec<u8>,
+        /// Query all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+    },
+    /// Set Rpm desired value
+    SetRpmParams {
+        /// Motors to set: 1..=4, or use --all
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
+        motors: Vec<u8>,
+        /// Set all motors
+        #[arg(long, action = ArgAction::SetTrue)]
+        all: bool,
+        /// Desired RPM value
+        #[arg(short = 'r', long = "rpm")]
+        rpm_value: u32,
     },
     /// Get PID parameters
     GetPidParams {
         /// Motors to query: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Query all motors
         #[arg(long, action = ArgAction::SetTrue)]
@@ -138,7 +153,7 @@ enum Commands {
     /// Set PID parameters
     SetPidParams {
         /// Motors to set: 1..=4, or use --all
-        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(1..=4))]
+        #[arg(value_delimiter = ' ', value_parser = clap::value_parser!(u8).range(MOTOR_INDEX_RANGE_I64))]
         motors: Vec<u8>,
         /// Set all motors
         #[arg(long, action = ArgAction::SetTrue)]
@@ -165,6 +180,26 @@ struct Cli {
 
     #[command(subcommand)]
     command: Commands,
+}
+
+fn set_motors_reg_value(dev: &mut Device, motors: &[u8], all: bool, reg_offset: MotorRegisterOffset, value: u32) {
+    
+    if !all && motors.is_empty() {
+        eprintln!("No motors specified. Pass --all or a motor list.");
+        return;
+    }
+    let motors = if all {
+        MOTOR_INDEX_RANGE.collect::<Vec<u8>>()
+    } else {
+        motors.to_vec()
+    };
+    for motor in motors {
+        let idx = (motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let reg_id = device::RegisterID::from_motor_id(motor_id, reg_offset);
+        let reg_data = value.to_le_bytes();
+        dev.req_reg_write(reg_id, &reg_data);
+    }
 }
 
 fn main() {
@@ -199,6 +234,10 @@ fn main() {
                 eprintln!("{err}");
             }
         }
+        Commands::SetMotMode { motors, all, mode } => {
+            let mode_val = *mode as u32;
+            set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::OperationMode, mode_val);
+        }
         Commands::GetMotDir { motors, all } => {
             if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
                 println!("Motor {} Direction: {:?}", idx + 1, status.direction);
@@ -211,25 +250,8 @@ fn main() {
             all,
             direction,
         } => {
-           if *all == true {
-                let dir_reg = (device::MotorDirection::from(*direction) as u32).to_le_bytes();
-                dev.req_reg_write(device::RegisterID::Motor1Direction, &dir_reg);
-                dev.req_reg_write(device::RegisterID::Motor2Direction, &dir_reg);
-                dev.req_reg_write(device::RegisterID::Motor3Direction, &dir_reg);
-                dev.req_reg_write(device::RegisterID::Motor4Direction, &dir_reg);
-           } else {
-                if motors.is_empty() {
-                    eprintln!("No motors specified. Pass --all or a motor list.");
-                    return;
-                }
-                for motor in motors {
-                    let idx = (*motor - 1) as usize;
-                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
-                    let reg_id = device::RegisterID::from_motor_id(&motor_id, device::MotorRegisterOffset::Direction);
-                    let dir_reg = (device::MotorDirection::from(*direction) as u32).to_le_bytes();
-                    dev.req_reg_write(reg_id, &dir_reg);
-                }
-           }
+            let dir = *direction as u32;
+            set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::Direction, dir);
         }
         Commands::GetMotPwm { motors, all } => {
             if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
@@ -243,25 +265,21 @@ fn main() {
             all,
             pwm_value,
         } => {
-           if *all == true {
-                let pwm_reg = (*pwm_value as u32).to_le_bytes();
-                dev.req_reg_write(device::RegisterID::Motor1PWMDutyCycle, &pwm_reg);
-                dev.req_reg_write(device::RegisterID::Motor2PWMDutyCycle, &pwm_reg);
-                dev.req_reg_write(device::RegisterID::Motor3PWMDutyCycle, &pwm_reg);
-                dev.req_reg_write(device::RegisterID::Motor4PWMDutyCycle, &pwm_reg);
-           } else {
-                if motors.is_empty() {
-                    eprintln!("No motors specified. Pass --all or a motor list.");
-                    return;
-                }
-                for motor in motors {
-                    let idx = (*motor - 1) as usize;
-                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
-                    let reg_id = device::RegisterID::from_motor_id(&motor_id, device::MotorRegisterOffset::PWMDutyCycle);
-                    let pwm_reg = (*pwm_value as u32).to_le_bytes();
-                    dev.req_reg_write(reg_id, &pwm_reg);
-                }
-           } 
+            set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::PWMDutyCycle, *pwm_value);
+        }
+        Commands::GetRpmParams { motors, all } => {
+            if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
+                println!("Motor {} RPM Parameters: desired {:?}, current {:?}", idx + 1, status.rpm_desired, status.rpm_current);
+            }) {
+                eprintln!("{err}");
+            }
+        }
+        Commands::SetRpmParams {
+            motors,
+            all,
+            rpm_value,
+        } => {
+            set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::RPMDesired, *rpm_value);
         }
         Commands::GetPidParams { motors, all } => {
             if let Err(err) = for_each_motor_status(&mut dev, motors, *all, |idx, status| {
@@ -282,65 +300,14 @@ fn main() {
                 eprintln!("At least one PID parameter (--kp, --ki, or --kd) must be specified.");
                 return;
             }
-
-            if *all {
-                if let Some(kp_val) = kp {
-                    let kp_reg = kp_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKp, &kp_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKp, &kp_reg);
-                }
-                
-                if let Some(ki_val) = ki {
-                    let ki_reg = ki_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKi, &ki_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKi, &ki_reg);
-                }
-                
-                if let Some(kd_val) = kd {
-                    let kd_reg = kd_val.to_le_bytes();
-                    dev.req_reg_write(device::RegisterID::Motor1PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor2PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor3PIDKd, &kd_reg);
-                    dev.req_reg_write(device::RegisterID::Motor4PIDKd, &kd_reg);
-                }
-            } else {
-                if motors.is_empty() {
-                    eprintln!("No motors specified. Pass --all or a motor list.");
-                    return;
-                }
-                
-                for motor in motors {
-                    let idx = (*motor - 1) as usize;
-                    let motor_id = device::MotorID::try_from(idx as u8).unwrap();
-                    
-                    if let Some(kp_val) = kp {
-                        let kp_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKp); // PID Kp offset
-                        let kp_reg = kp_val.to_le_bytes();
-                        dev.req_reg_write(kp_reg_id, &kp_reg);
-                    }
-                    
-                    if let Some(ki_val) = ki {
-                        let ki_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKi); // PID Ki offset
-                        let ki_reg = ki_val.to_le_bytes();
-                        dev.req_reg_write(ki_reg_id, &ki_reg);
-                    }
-                    
-                    if let Some(kd_val) = kd {
-                        let kd_reg_id = device::RegisterID::from_motor_id(
-                            &motor_id,
-                            device::MotorRegisterOffset::PIDKd); // PID Kd offset
-                        let kd_reg = kd_val.to_le_bytes();
-                        dev.req_reg_write(kd_reg_id, &kd_reg);
-                    }
-                }
+            if let Some(kp_val) = kp {
+                set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::PIDKp, *kp_val);
+            }
+            if let Some(ki_val) = ki {
+                set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::PIDKi, *ki_val);
+            }
+            if let Some(kd_val) = kd {
+                set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::PIDKd, *kd_val);
             }
         }
     }
