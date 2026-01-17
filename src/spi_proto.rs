@@ -1,7 +1,7 @@
 use std::thread::sleep;
 
 use crc::{Crc, CRC_16_IBM_SDLC};
-use embedded_hal::spi::{Operation as SpiOperation, SpiDevice};
+use embedded_hal::spi::{SpiDevice};
 use num_enum::TryFromPrimitive;
 
 pub const PROTOCOL_HEADER_SIZE : usize = 5; // 1 byte reg, 2 bytes len, 2 bytes CRC

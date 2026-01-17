@@ -3,55 +3,63 @@
 | Reg(1byte) | Description |  Default Value (4bytes) | Access | Detailed description |
 |-------------|-------------|----------------|--------|----------------------|
 | 0x00 | Device ID | "4MOT" | RO | Unique identifier for the device |
-| 0x01 | Firmware version | "x.x.x" | RO | Current firmware version |
-| 0x02 | Motor1 Control Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
+| 0x01 | Firmware version | "0.0.0.1" | RO | Current firmware version |
+| 0x02 | Motor1 Operation Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
 | 0x03 | Motor1 direction  | 0 | RW | 0: Stop, 1: Forward, 2: Backward |
-| 0x04 | Motor1 pwm duty cycle | 0 | RW | PWM duty cycle for Motor1 |
-| 0x05 | Motor1 counts per revolution | 0 | RW | Counts per revolution for Motor1 |
+| 0x04 | Motor1 pwm duty cycle | 0 | RW | PWM duty cycle for Motor1 (0-100) |
+| 0x05 | Motor1 counts per revolution | 1 | RW | Counts per revolution for Motor1 |
 | 0x06 | Motor1 pid kp | 0 | RW | PID Kp for Motor1 |
 | 0x07 | Motor1 pid ki | 0 | RW | PID Ki for Motor1 |
 | 0x08 | Motor1 pid kd | 0 | RW | PID Kd for Motor1 |
-| 0x09 | Motor1 rpm desired | 0 | RW | Desired rpm for Motor1 |
+| 0x09 | Motor1 rpm desired | 0 | RW | Desired rpm for Motor1 (0-200) |
 | 0x0A | Motor1 rpm current | 0 | R | Current rpm for Motor1 |
-| 0x0B | Motor2 Control Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
+| 0x0B | Motor2 Operation Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
 | 0x0C | Motor2 direction  | 0 | RW | 0: Stop, 1: Forward, 2: Backward |
-| 0x0D | Motor2 pwm duty cycle | 0 | RW | PWM duty cycle for Motor2 |
-| 0x0E | Motor2 counts per revolution | 0 | RW | Counts per revolution for Motor2 |
+| 0x0D | Motor2 pwm duty cycle | 0 | RW | PWM duty cycle for Motor2 (0-100) |
+| 0x0E | Motor2 counts per revolution | 1 | RW | Counts per revolution for Motor2 |
 | 0x0F | Motor2 pid kp | 0 | RW | PID Kp for Motor2 |
 | 0x10 | Motor2 pid ki | 0 | RW | PID Ki for Motor2 |
 | 0x11 | Motor2 pid kd | 0 | RW | PID Kd for Motor2 |
-| 0x12 | Motor2 rpm desired | 0 | RW | Desired rpm for Motor2 |
+| 0x12 | Motor2 rpm desired | 0 | RW | Desired rpm for Motor2 (0-200) |
 | 0x13 | Motor2 rpm current | 0 | R | Current rpm for Motor2 |
-| 0x14 | Motor3 Control Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
+| 0x14 | Motor3 Operation Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
 | 0x15 | Motor3 direction  | 0 | RW | 0: Stop, 1: Forward, 2: Backward |
-| 0x16 | Motor3 pwm duty cycle | 0 | RW | PWM duty cycle for Motor3 |
-| 0x17 | Motor3 counts per revolution | 0 | RW | Counts per revolution for Motor3 |
+| 0x16 | Motor3 pwm duty cycle | 0 | RW | PWM duty cycle for Motor3 (0-100) |
+| 0x17 | Motor3 counts per revolution | 1 | RW | Counts per revolution for Motor3 |
 | 0x18 | Motor3 pid kp | 0 | RW | PID Kp for Motor3 |
 | 0x19 | Motor3 pid ki | 0 | RW | PID Ki for Motor3 |
 | 0x1A | Motor3 pid kd | 0 | RW | PID Kd for Motor3 |
-| 0x1B | Motor3 rpm desired | 0 | RW | Desired rpm for Motor3 |
+| 0x1B | Motor3 rpm desired | 0 | RW | Desired rpm for Motor3 (0-200) |
 | 0x1C | Motor3 rpm current | 0 | R | Current rpm for Motor3 |
-| 0x1D | Motor4 Control Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
+| 0x1D | Motor4 Operation Mode  | 0 | RW | 0: Pwm control, 1: Rpm control |
 | 0x1E | Motor4 direction  | 0 | RW | 0: Stop, 1: Forward, 2: Backward |
-| 0x1F | Motor4 pwm duty cycle | 0 | RW | PWM duty cycle for Motor4 |
-| 0x20 | Motor4 counts per revolution | 0 | RW | Counts per revolution for Motor4 |
+| 0x1F | Motor4 pwm duty cycle | 0 | RW | PWM duty cycle for Motor4 (0-100) |
+| 0x20 | Motor4 counts per revolution | 1 | RW | Counts per revolution for Motor4 |
 | 0x21 | Motor4 pid kp | 0 | RW | PID Kp for Motor4 |
 | 0x22 | Motor4 pid ki | 0 | RW | PID Ki for Motor4 |
 | 0x23 | Motor4 pid kd | 0 | RW | PID Kd for Motor4 |
-| 0x24 | Motor4 rpm desired | 0 | RW | Desired rpm for Motor4 |
+| 0x24 | Motor4 rpm desired | 0 | RW | Desired rpm for Motor4 (0-200) |
 | 0x25 | Motor4 rpm current | 0 | R | Current rpm for Motor4 |
-| 0x26 | Internal loop time | 0 | RW | Internal loop time |
-| 0x27 | Last error status | 0 | R | Last error status 1 byte | reg 1 byte | 2 reserved |
-### Errors
+| 0x26 | Internal loop time | 10 | RW | Internal loop time (1-10000) |
+| 0x27 | Last error status | 0 | R | Last error status --> clears on read |
+
+# Errors
 | Error code | Description |
 |-------------|-------------|
 | 0x00 | No error |
 | 0x01 | Invalid register address |
 | 0x02 | Invalid request length |
-| 0x03 | CRC mismatch |
-| 0x04 | Invalid control mode |
-| 0x05 | Write not allowed in this control mode |*/
+| 0x03 | Invalid register value range |
+| 0x04 | Not allowed read only |
+| 0x05 | Invalid control mode |
+| 0x06 | Write not allowed in this control mode |
+| 0x07 | CRC validation failed |
 
+# Notes
+- PWM duty cycle becomes read-only when motor is in RPM control mode
+- Error status register clears to NoError when read
+*/
+use clap::ValueEnum;
 use linux_embedded_hal::{
     spidev::{SpiModeFlags, SpidevOptions},
     SpidevDevice,
@@ -78,18 +86,18 @@ pub const MOTORS_DATA_START_OFFSET: usize = SYSTEM_INFO_SIZE;
 pub const INTERNAL_LOOP_TIME_OFFSET: usize = MOTORS_DATA_START_OFFSET + DEVICE_ALL_MOTORS_BLOCK_SIZE_BYTES_READ;
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, TryFromPrimitive)]
 pub enum ControlMode {
     Pwm = 0,
     Rpm = 1,
 }
 
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, TryFromPrimitive)]
 pub enum MotorDirection {
     Stop = 0,
-    Forward = 1,
-    Backward = 2,
+    Fw = 1,
+    Bw = 2,
 }
 
 #[repr(u32)]
@@ -98,9 +106,11 @@ pub enum ErrorCode {
     NoError = 0x00,
     InvalidRegisterAddress = 0x01,
     InvalidRequestLength = 0x02,
-    CRCMismatch = 0x03,
-    InvalidControlMode = 0x04,
-    WriteNotAllowedInThisControlMode = 0x05,
+    InvalidRegisterValueRange = 0x03,
+    NowAllowedReadOnly = 0x04,
+    InvalidControlMode = 0x05,
+    WriteNotAllowedInThisControlMode = 0x06,
+    CrcValidationFailed = 0x07,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TryFromPrimitive)]
@@ -234,14 +244,14 @@ pub struct Device {
 }
 
 impl RegisterID {
-    pub fn from_motor_id(motor_id: &MotorID, offset: MotorRegisterOffset) -> Self {
+    pub fn from_motor_id(motor_id: MotorID, offset: MotorRegisterOffset) -> Self {
         debug_assert!(
             (offset as usize) < DEVICE_MOTOR_BLOCK_COUNT_READ,
             "motor register offset out of range: {}",
             offset as usize
         );
         let base = RegisterID::Motor1OperationMode as u8
-            + (*motor_id as u8) * DEVICE_MOTOR_BLOCK_COUNT_READ as u8
+            + (motor_id as u8) * DEVICE_MOTOR_BLOCK_COUNT_READ as u8
             + offset as u8;
         RegisterID::try_from(base).unwrap()
     }
@@ -367,7 +377,7 @@ impl Device {
 
         println!("Writing to register ID: {:?}, data length: {}", reg_id, regs.len());
         let mut proto_buff: [u8; REGISTERS_PROTO_SIZE] = [0; REGISTERS_PROTO_SIZE];
-        let mut proto_buff_size_used = spi_proto::PROTOCOL_HEADER_SIZE + regs.len() + spi_proto::PROTOCOL_CRC_SIZE;
+        let proto_buff_size_used = spi_proto::PROTOCOL_HEADER_SIZE + regs.len() + spi_proto::PROTOCOL_CRC_SIZE;
         let mut proto_buff_used = &mut proto_buff[0..proto_buff_size_used];
         assert!(
             proto_buff_size_used <= REGISTERS_PROTO_SIZE,
@@ -388,6 +398,7 @@ impl Device {
         spi_proto::populate_crc(data, crc); 
         spi_proto::execute_spi_transaction(&mut self.spi_dev,
                                              &mut proto_buff_used);
+        println!("Resiter id {:?} write request sent, error code: {:?}", reg_id, self.get_last_error_status());
     }
 
     
@@ -433,7 +444,7 @@ impl Device {
     }
 
     pub fn get_motor_dump(&mut self, motor_num: MotorID) -> MotorStatus {
-        let reg_id = RegisterID::from_motor_id(&motor_num, device::MotorRegisterOffset::OperationMode);
+        let reg_id = RegisterID::from_motor_id(motor_num, device::MotorRegisterOffset::OperationMode);
         let mut reg_dump: [u8; DEVICE_MOTOR_BLOCK_SIZE_BYTES_READ] = [0; DEVICE_MOTOR_BLOCK_SIZE_BYTES_READ];
         self.req_regs_dump(reg_id, &mut reg_dump);
         self.populate_motor_status(motor_num, &reg_dump)
@@ -471,8 +482,9 @@ impl Device {
 
         regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES]
             .copy_from_slice(&motor_cfg.rpm_desired.to_le_bytes());
-        let reg_id = RegisterID::from_motor_id(&motor_num, device::MotorRegisterOffset::OperationMode);
+        let reg_id = RegisterID::from_motor_id(motor_num, device::MotorRegisterOffset::OperationMode);
         self.req_reg_write(reg_id, &regs_buff);
+
     }
 
     pub fn get_motor_dump_all(&mut self) -> [MotorStatus; DEVICE_SUPPORTED_MOTORS] {
@@ -526,7 +538,7 @@ impl Device {
         pids_params_buff[offset.. offset + DEVICE_REG_SIZE_BYTES]
             .copy_from_slice(&pid_params.kd.to_le_bytes());
 
-        let reg_id_kp = RegisterID::from_motor_id(&motor_num, MotorRegisterOffset::PIDKp);
+        let reg_id_kp = RegisterID::from_motor_id(motor_num, MotorRegisterOffset::PIDKp);
         self.req_reg_write(reg_id_kp, &pids_params_buff);
     }
 
