@@ -14,20 +14,20 @@ pub enum SpiPackOpType {
     Read = 0u8,
     Write = 1u8,
 }
-
+pub const SPI_WAIT_MS: u64 = 50;
 pub fn execute_spi_transaction(spidev: &mut impl SpiDevice, 
                                 buffer: &mut [u8]) { 
 
     let operation = SpiPackOpType::try_from((buffer[0] >> 7u8) & 0x01u8).unwrap();
     let (header, data_crc) = buffer.split_at_mut(PROTOCOL_HEADER_SIZE);
     spidev.write(header).unwrap();
-    sleep(std::time::Duration::from_millis(50));
+    sleep(std::time::Duration::from_millis(SPI_WAIT_MS));
     if operation == SpiPackOpType::Write {
         spidev.write(data_crc).unwrap();
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(SPI_WAIT_MS));
     } else {
         spidev.read(data_crc).unwrap();
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(SPI_WAIT_MS));
         // spidev.transaction(&mut spi_ops).expect("SPI transaction failed");
         println!("Received data: {:x?}", data_crc);
     }

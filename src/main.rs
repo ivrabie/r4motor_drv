@@ -117,8 +117,8 @@ enum Commands {
         /// Set all motors
         #[arg(long, action = ArgAction::SetTrue)]
         all: bool,
-        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u32).range(0..=100))]
-        pwm_value: u32,
+        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(i32).range(0..=100))]
+        pwm_value: i32,
     },
     /// Get Rpm parameters 
     GetRpmParams {
@@ -139,7 +139,7 @@ enum Commands {
         all: bool,
         /// Desired RPM value
         #[arg(short = 'r', long = "rpm")]
-        rpm_value: u32,
+        rpm_value: i32,
     },
     /// Get PID parameters
     GetPidParams {
@@ -160,13 +160,13 @@ enum Commands {
         all: bool,
         /// PID Kp parameter (optional)
         #[arg(long = "kp")]
-        kp: Option<u32>,
+        kp: Option<i32>,
         /// PID Ki parameter (optional)
         #[arg(long = "ki")]
-        ki: Option<u32>,
+        ki: Option<i32>,
         /// PID Kd parameter (optional)
         #[arg(long = "kd")]
-        kd: Option<u32>,
+        kd: Option<i32>,
     },
 }
 
@@ -182,7 +182,7 @@ struct Cli {
     command: Commands,
 }
 
-fn set_motors_reg_value(dev: &mut Device, motors: &[u8], all: bool, reg_offset: MotorRegisterOffset, value: u32) {
+fn set_motors_reg_value(dev: &mut Device, motors: &[u8], all: bool, reg_offset: MotorRegisterOffset, value: i32) {
     
     if !all && motors.is_empty() {
         eprintln!("No motors specified. Pass --all or a motor list.");
@@ -235,7 +235,7 @@ fn main() {
             }
         }
         Commands::SetMotMode { motors, all, mode } => {
-            let mode_val = *mode as u32;
+            let mode_val = *mode as i32;
             set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::OperationMode, mode_val);
         }
         Commands::GetMotDir { motors, all } => {
@@ -250,7 +250,7 @@ fn main() {
             all,
             direction,
         } => {
-            let dir = *direction as u32;
+            let dir = *direction as i32;
             set_motors_reg_value(&mut dev, motors, *all, MotorRegisterOffset::Direction, dir);
         }
         Commands::GetMotPwm { motors, all } => {

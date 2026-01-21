@@ -85,14 +85,14 @@ pub const SYSTEM_INFO_SIZE: usize = DEVICE_ID_REG_SIZE + FIRMWARE_VERSION_REG_SI
 pub const MOTORS_DATA_START_OFFSET: usize = SYSTEM_INFO_SIZE;
 pub const INTERNAL_LOOP_TIME_OFFSET: usize = MOTORS_DATA_START_OFFSET + DEVICE_ALL_MOTORS_BLOCK_SIZE_BYTES_READ;
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, TryFromPrimitive)]
 pub enum ControlMode {
     Pwm = 0,
     Rpm = 1,
 }
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, TryFromPrimitive)]
 pub enum MotorDirection {
     Stop = 0,
@@ -100,7 +100,7 @@ pub enum MotorDirection {
     Bw = 2,
 }
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
 pub enum ErrorCode {
     NoError = 0x00,
@@ -182,9 +182,9 @@ pub enum MotorID {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PidParams {
-    pub kp: u32,
-    pub ki: u32,
-    pub kd: u32,
+    pub kp: i32,
+    pub ki: i32,
+    pub kd: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -196,10 +196,10 @@ pub struct SystemInfo {
 pub struct MotorStatus {
     pub mode: ControlMode,
     pub direction: MotorDirection,
-    pub pwm_duty_cycle: u32,
-    pub counts_per_revolution: u32,
-    pub rpm_current: u32,
-    pub rpm_desired: u32,
+    pub pwm_duty_cycle: i32,
+    pub counts_per_revolution: i32,
+    pub rpm_current: i32,
+    pub rpm_desired: i32,
     pub pid_params: PidParams,
 }
 
@@ -207,9 +207,9 @@ pub struct MotorStatus {
 pub struct MotorCfg {
     pub mode: ControlMode,
     pub direction: MotorDirection,
-    pub pwm_duty_cycle: u32,
-    pub counts_per_revolution: u32,
-    pub rpm_desired: u32,
+    pub pwm_duty_cycle: i32,
+    pub counts_per_revolution: i32,
+    pub rpm_desired: i32,
     pub pid_params: PidParams,
 }
 
@@ -230,13 +230,13 @@ impl Default for MotorStatus {
 pub struct DeviceFullInfo {
     pub system_info: SystemInfo,
     pub motors_status: [MotorStatus; DEVICE_SUPPORTED_MOTORS],
-    pub internal_loop_time_ms: u32,
+    pub internal_loop_time_ms: i32,
     pub last_error_status: ErrorCode,
 }
 
 pub struct DeviceCfg {
     pub motors_cfg: [MotorCfg; DEVICE_SUPPORTED_MOTORS],
-    pub internal_loop_time_ms: u32,
+    pub internal_loop_time_ms: i32,
 }
 
 pub struct Device {
@@ -274,13 +274,13 @@ impl Device {
         }
     }
 
-    fn extract_u32_from_bytes(data: &[u8]) -> u32 {
+    fn extract_u32_from_bytes(data: &[u8]) -> i32 {
         debug_assert!(
             data.len() >= DEVICE_REG_SIZE_BYTES,
             "expected at least {} bytes",
             DEVICE_REG_SIZE_BYTES
         );
-        u32::from_le_bytes([data[0], data[1], data[2], data[3]])
+        i32::from_le_bytes([data[0], data[1], data[2], data[3]])
     }
 
     fn parse_system_info(reg_dump: &[u8]) -> SystemInfo {
@@ -454,10 +454,10 @@ impl Device {
         let mut regs_buff: [u8; DEVICE_MOTOR_BLOCK_COUNT_WRITE] = [0; DEVICE_MOTOR_BLOCK_COUNT_WRITE];
         let mut offset = 0;
         
-        regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES].copy_from_slice(&(motor_cfg.mode as u32).to_le_bytes());
+        regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES].copy_from_slice(&(motor_cfg.mode as i32).to_le_bytes());
         offset += DEVICE_REG_SIZE_BYTES;
 
-        regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES].copy_from_slice(&(motor_cfg.direction as u32).to_le_bytes());
+        regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES].copy_from_slice(&(motor_cfg.direction as i32).to_le_bytes());
         offset += DEVICE_REG_SIZE_BYTES;
 
         regs_buff[offset.. offset + DEVICE_REG_SIZE_BYTES]
@@ -509,13 +509,13 @@ impl Device {
         }
     }
 
-    pub fn get_internal_loop_time_ms(&mut self) -> u32 {
+    pub fn get_internal_loop_time_ms(&mut self) -> i32 {
         let mut reg_dump: [u8; DEVICE_REG_SIZE_BYTES] = [0; DEVICE_REG_SIZE_BYTES];
         self.req_regs_dump(RegisterID::InternalLoopTime, &mut reg_dump);
         Self::extract_u32_from_bytes(&reg_dump)
     }
 
-    pub fn set_internal_loop_time_ms(&mut self, loop_time_ms: u32) {
+    pub fn set_internal_loop_time_ms(&mut self, loop_time_ms: i32) {
         let reg_data = loop_time_ms.to_le_bytes();
         self.req_reg_write(RegisterID::InternalLoopTime, &reg_data);
     }
