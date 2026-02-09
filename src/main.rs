@@ -144,23 +144,23 @@ enum Commands {
         #[arg(short = 'd', long = "dir")]
         dir: Option<device::MotorDirection>,
         /// Pwm value range: 0 - 100
-        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(u32).range(0..=100))]
-        pwm: Option<u32>,
+        #[arg(short = 'p', long = "pwm", value_parser = clap::value_parser!(i32).range(0..=100))]
+        pwm: Option<i32>,
         /// Desired RPM value
-        #[arg(short = 'r', long = "rpm")]
-        rpm: Option<u32>,
+        #[arg(short = 'r', long = "rpm", value_parser = clap::value_parser!(i32).range(0..))]
+        rpm: Option<i32>,
         /// Counts per revolution
-        #[arg(long = "counts-per-rev")]
-        counts_per_rev: Option<u32>,
+        #[arg(long = "counts-per-rev", value_parser = clap::value_parser!(i32).range(1..))]
+        counts_per_rev: Option<i32>,
         /// PID Kp parameter (optional)
         #[arg(long = "kp")]
-        kp: Option<u32>,
+        kp: Option<f32>,
         /// PID Ki parameter (optional)
         #[arg(long = "ki")]
-        ki: Option<u32>,
+        ki: Option<f32>,
         /// PID Kd parameter (optional)
         #[arg(long = "kd")]
-        kd: Option<u32>,
+        kd: Option<f32>,
     },
     /// Monitor motor parameters
     Monitor {
@@ -205,7 +205,57 @@ fn set_motors_reg_value(
     motors: &[u8],
     all: bool,
     reg_offset: MotorRegisterOffset,
+    value: i32,
+) {
+    if !all && motors.is_empty() {
+        error!("No motors specified. Pass --all or a motor list.");
+        return;
+    }
+    let motors = if all {
+        MOTOR_INDEX_RANGE.collect::<Vec<u8>>()
+    } else {
+        motors.to_vec()
+    };
+    for motor in motors {
+        let idx = (motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let reg_id = device::RegisterID::from_motor_id(motor_id, reg_offset);
+        let reg_data = value.to_le_bytes();
+        dev.req_reg_write(reg_id, &reg_data);
+    }
+}
+
+fn set_motors_reg_value_u32(
+    dev: &mut Device,
+    motors: &[u8],
+    all: bool,
+    reg_offset: MotorRegisterOffset,
     value: u32,
+) {
+    if !all && motors.is_empty() {
+        error!("No motors specified. Pass --all or a motor list.");
+        return;
+    }
+    let motors = if all {
+        MOTOR_INDEX_RANGE.collect::<Vec<u8>>()
+    } else {
+        motors.to_vec()
+    };
+    for motor in motors {
+        let idx = (motor - 1) as usize;
+        let motor_id = device::MotorID::try_from(idx as u8).unwrap();
+        let reg_id = device::RegisterID::from_motor_id(motor_id, reg_offset);
+        let reg_data = value.to_le_bytes();
+        dev.req_reg_write(reg_id, &reg_data);
+    }
+}
+
+fn set_motors_reg_value_f32(
+    dev: &mut Device,
+    motors: &[u8],
+    all: bool,
+    reg_offset: MotorRegisterOffset,
+    value: f32,
 ) {
     if !all && motors.is_empty() {
         error!("No motors specified. Pass --all or a motor list.");
@@ -307,17 +357,24 @@ fn main() {
             ki,
             kd,
         } => {
-            let writes = [
+            let writes_u32 = [
                 mode.map(|val| (MotorRegisterOffset::OperationMode, val as u32)),
                 dir.map(|val| (MotorRegisterOffset::Direction, val as u32)),
+            ];
+            let writes_i32 = [
                 pwm.map(|val| (MotorRegisterOffset::PWMDutyCycle, val)),
                 rpm.map(|val| (MotorRegisterOffset::RPMDesired, val)),
                 counts_per_rev.map(|val| (MotorRegisterOffset::CountsPerRevolution, val)),
+            ];
+            let writes_f32 = [
                 kp.map(|val| (MotorRegisterOffset::PIDKp, val)),
                 ki.map(|val| (MotorRegisterOffset::PIDKi, val)),
                 kd.map(|val| (MotorRegisterOffset::PIDKd, val)),
             ];
-            if !writes.iter().any(|entry| entry.is_some()) {
+            if !writes_u32.iter().any(|entry| entry.is_some())
+                && !writes_i32.iter().any(|entry| entry.is_some())
+                && !writes_f32.iter().any(|entry| entry.is_some())
+            {
                 error!("At least one parameter must be specified.");
                 return;
             }
@@ -325,8 +382,14 @@ fn main() {
                 error!("No motors specified. Pass --all or a motor list.");
                 return;
             }
-            for (offset, value) in writes.into_iter().flatten() {
+            for (offset, value) in writes_u32.into_iter().flatten() {
+                set_motors_reg_value_u32(&mut dev, motors, *all, offset, value);
+            }
+            for (offset, value) in writes_i32.into_iter().flatten() {
                 set_motors_reg_value(&mut dev, motors, *all, offset, value);
+            }
+            for (offset, value) in writes_f32.into_iter().flatten() {
+                set_motors_reg_value_f32(&mut dev, motors, *all, offset, value);
             }
         }
         Commands::Monitor {

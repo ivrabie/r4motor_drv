@@ -192,9 +192,9 @@ pub enum MotorID {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PidParams {
-    pub kp: u32,
-    pub ki: u32,
-    pub kd: u32,
+    pub kp: f32,
+    pub ki: f32,
+    pub kd: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -206,10 +206,10 @@ pub struct SystemInfo {
 pub struct MotorStatus {
     pub mode: ControlMode,
     pub direction: MotorDirection,
-    pub pwm_duty_cycle: u32,
-    pub counts_per_revolution: u32,
-    pub rpm_current: u32,
-    pub rpm_desired: u32,
+    pub pwm_duty_cycle: i32,
+    pub counts_per_revolution: i32,
+    pub rpm_current: i32,
+    pub rpm_desired: i32,
     pub pid_params: PidParams,
 }
 
@@ -218,9 +218,9 @@ pub struct MotorStatus {
 pub struct MotorCfg {
     pub mode: ControlMode,
     pub direction: MotorDirection,
-    pub pwm_duty_cycle: u32,
-    pub counts_per_revolution: u32,
-    pub rpm_desired: u32,
+    pub pwm_duty_cycle: i32,
+    pub counts_per_revolution: i32,
+    pub rpm_desired: i32,
     pub pid_params: PidParams,
 }
 
@@ -284,13 +284,13 @@ impl Device {
         Device { spi_dev: spi }
     }
 
-    fn extract_u32_from_bytes(data: &[u8]) -> u32 {
+    fn extract_from_bytes<T>(data: &[u8], from_bytes: fn([u8; DEVICE_REG_SIZE_BYTES]) -> T) -> T {
         debug_assert!(
             data.len() >= DEVICE_REG_SIZE_BYTES,
             "expected at least {} bytes",
             DEVICE_REG_SIZE_BYTES
         );
-        u32::from_le_bytes([data[0], data[1], data[2], data[3]])
+        from_bytes([data[0], data[1], data[2], data[3]])
     }
 
     fn parse_system_info(reg_dump: &[u8]) -> SystemInfo {
@@ -324,19 +324,20 @@ impl Device {
         let mut status = MotorStatus::default();
         let mut regs = data.chunks_exact(DEVICE_REG_SIZE_BYTES);
 
-        status.mode = Self::extract_u32_from_bytes(regs.next().unwrap())
+        status.mode = Self::extract_from_bytes(regs.next().unwrap(), u32::from_le_bytes)
             .try_into()
             .unwrap();
-        status.direction = Self::extract_u32_from_bytes(regs.next().unwrap())
+        status.direction = Self::extract_from_bytes(regs.next().unwrap(), u32::from_le_bytes)
             .try_into()
             .unwrap();
-        status.pwm_duty_cycle = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.counts_per_revolution = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.pid_params.kp = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.pid_params.ki = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.pid_params.kd = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.rpm_desired = Self::extract_u32_from_bytes(regs.next().unwrap());
-        status.rpm_current = Self::extract_u32_from_bytes(regs.next().unwrap());
+        status.pwm_duty_cycle = Self::extract_from_bytes(regs.next().unwrap(), i32::from_le_bytes);
+        status.counts_per_revolution =
+            Self::extract_from_bytes(regs.next().unwrap(), i32::from_le_bytes);
+        status.pid_params.kp = Self::extract_from_bytes(regs.next().unwrap(), f32::from_le_bytes);
+        status.pid_params.ki = Self::extract_from_bytes(regs.next().unwrap(), f32::from_le_bytes);
+        status.pid_params.kd = Self::extract_from_bytes(regs.next().unwrap(), f32::from_le_bytes);
+        status.rpm_desired = Self::extract_from_bytes(regs.next().unwrap(), i32::from_le_bytes);
+        status.rpm_current = Self::extract_from_bytes(regs.next().unwrap(), i32::from_le_bytes);
 
         status
     }
@@ -443,8 +444,9 @@ impl Device {
             motors_status[motor_idx] = self.populate_motor_status(motor_id, motor_regs);
         }
 
-        let internal_loop_time_ms = Self::extract_u32_from_bytes(
+        let internal_loop_time_ms = Self::extract_from_bytes(
             &reg_dump[INTERNAL_LOOP_TIME_OFFSET..INTERNAL_LOOP_TIME_OFFSET + DEVICE_REG_SIZE_BYTES],
+            u32::from_le_bytes,
         );
 
         DeviceFullInfo {
@@ -545,7 +547,7 @@ impl Device {
     pub fn get_internal_loop_time_ms(&mut self) -> u32 {
         let mut reg_dump: [u8; DEVICE_REG_SIZE_BYTES] = [0; DEVICE_REG_SIZE_BYTES];
         self.req_regs_dump(RegisterID::InternalLoopTime, &mut reg_dump);
-        Self::extract_u32_from_bytes(&reg_dump)
+        Self::extract_from_bytes(&reg_dump, u32::from_le_bytes)
     }
 
     #[allow(dead_code)]
@@ -557,7 +559,7 @@ impl Device {
     pub fn get_last_error_status(&mut self) -> ErrorCode {
         let mut reg_dump: [u8; DEVICE_REG_SIZE_BYTES] = [0; DEVICE_REG_SIZE_BYTES];
         self.req_regs_dump(RegisterID::LastErrorStatus, &mut reg_dump);
-        ErrorCode::try_from(Self::extract_u32_from_bytes(&reg_dump)).unwrap()
+        ErrorCode::try_from(Self::extract_from_bytes(&reg_dump, u32::from_le_bytes)).unwrap()
     }
 
     #[allow(dead_code)]
